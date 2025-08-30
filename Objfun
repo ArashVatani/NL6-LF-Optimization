@@ -1,0 +1,82 @@
+function [result,ft] = Objfun_Report (x)
+X=x(1);
+K=x(2);
+C1=x(3);
+C2=x(4);
+alpha1=x(5);
+alpha2=x(6);
+beta=x(7);
+A1=x(8);
+A2=x(9);
+B=x(10);
+w1=x(11);
+w2=x(12);
+gamma=x(13);
+mu_s=100000;
+mu_O=100000;
+
+dt=1;
+I=[261;389;462;505;525;543;556;567;577;583;587;595;597;597;589;556;538;516;486;505;477;429;379;320;263;220;182;167;152];
+Q=[228;300;382;444;490;513;528;543;553;564;573;581;588;594;592;584;566;550;520;504;483;461;420;368;318;271;234;193;178]';
+nsample=numel(I);
+O=zeros(1,nsample);
+O(1)=Q(1);
+s=zeros(1,nsample);
+s(1)=K*gamma*(X*C1*(I(1)^alpha1)+A1*sin(w1*I(1))+A2*cos(w2*I(1))+B+(1-X)*C2*(O(1)^alpha2))^beta;
+for n=1:nsample-1
+   ds=(I(n)+A1*sin(w1*I(n))+A2*cos(w2*I(n))+B-O(n))*dt;
+   s(n+1)=s(n)+ds;
+   while true
+       if s(n+1)<0
+           s(n+1)=mu_s*abs(s(n+1));
+           break
+       elseif isreal(s(n+1))==0
+           s(n+1)=mu_s*abs(s(n+1)*real(s(n+1)));
+           break
+       else
+           break
+       end
+   end
+   O(n+1)=((((s(n+1)/(K*gamma))^(1/beta))-A1*sin(w1*I(n))-A2*cos(w2*I(n))-B-X*C1*I(n)^alpha1)/(C2*(1-X)))^(1/alpha2);
+   while true
+       if O(n+1)<0
+           O(n+1)=mu_O*abs(O(n+1));
+           break
+       elseif isreal(O(n+1))==0
+           s(n+1)=mu_O*abs(O(n+1)*real(O(n+1)));
+           break
+       else
+           break
+       end
+   end
+end
+
+sar=zeros(1,nsample);
+ for i=1:nsample
+     sar(i)= abs(Q(i)-O(i)); %sum of absolute value of residuals
+ end
+ SSR=sum(sar.^2); 
+ ft=SSR;      % Sum of Square of Residuals (SSR) - Cost Function
+ Qmean=mean(Q);
+ NSE=1-(SSR)/(sum((Q-Qmean).^2));    % Nash-Sutcliffe Efficiency
+ Omean=mean(O);
+ CC=sum((O-Omean).*(Q-Qmean))/(sqrt(sum((O-Omean).^2))*sqrt(sum((Q-Qmean).^2))); %Correlation Coefficient
+ MARE=sum(abs(Q-O)./Q)/nsample;      % Mean Absolute Relative Error
+ DPO=abs(max(Q)-max(O));             % Difference of Peak magnitude of the Outflow
+ row_Q=find(Q==max(Q));
+ row_O=find(O==max(O));
+ Time_Qmax=(row_Q-1)*dt;
+ Time_Omax=(row_O-1)*dt;
+ RDPOT=abs(Time_Qmax-Time_Omax)/dt;     % Relative Deviation of Peak Time of computed and actual outflows
+%Set the results
+result.I=I;
+result.O=O';
+result.Q=Q';
+result.Correlation=CC;
+result.MARE=MARE;
+result.DPO=DPO;
+result.RDPOT=RDPOT;
+result.Nash=NSE;
+result.SSR=SSR;
+result.DesicionVariables=[X;K;C1;C2;alpha1;alpha2;beta;A1;A2;B;w1;w2;gamma];
+end
